@@ -2,6 +2,7 @@ package tcpserver
 
 import (
 	"log"
+	"strconv"
 )
 
 var (
@@ -18,12 +19,18 @@ type ResourceMonitor struct {
 	statusSignal  chan int
 }
 
+func (r *ResourceMonitor) StatusString() string {
+	var ret string
+	ret += "Total Cmd Executed: " + strconv.Itoa(r.cmdExecuted) + "\n"
+	return ret
+}
+
 func (r *ResourceMonitor) reportStatus() {
 	log.Println("cmdInQueue: ", r.cmdInQueue, " cmdExecuted: ", r.cmdExecuted)
 }
 
 func (r *ResourceMonitor) statusDaemon() {
-	for true {
+	for {
 		signalReceived := <-r.statusSignal
 		switch signalReceived {
 		case DaemonKilled:

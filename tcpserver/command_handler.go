@@ -52,7 +52,7 @@ func (c *CmdHandler) ExecuteCommand(cmd string) (int, error) {
 	return -1, nil
 }
 
-func (c CmdHandler) runCommand(opcode int) error {
+func (c *CmdHandler) runCommand(opcode int) error {
 	switch opcode {
 	case 0:
 		return nil
