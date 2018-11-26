@@ -4,11 +4,11 @@ import (
 	"time"
 )
 
-func RunNoop() error {
-	return nil
+func RunNoop(errChan chan error) {
+	errChan <- nil
 }
 
-func RunDelayingNoop() error {
+func RunDelayingNoop(errChan chan error) {
 	time.Sleep(time.Duration(8) * time.Second)
-	return nil
+	errChan <- nil
 }

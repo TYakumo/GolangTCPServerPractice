@@ -3,6 +3,7 @@ package tcpserver
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 var (
@@ -28,16 +29,22 @@ func ErrRateLimitReached() error {
 	return errors.New("API Rate Limit Reached")
 }
 
+func ErrAPIUnavailable() error {
+	return errors.New("API unavailable or unreachable")
+}
+
 func (c *CmdHandler) ExecuteCommand(cmd string) (int, error) {
 	cmd = strings.TrimSuffix(cmd, "\n")
 	cmd = strings.TrimSpace(cmd)
 
 	opcode, found := c.cmdStrMap[cmd]
 
+	timeout := time.Duration(3) * time.Second //setting much lower than 8 seconds deliberately for failure testing
+
 	if found {
 		if c.rateCntr.GetToken() {
 			c.monChan <- IncCmdInQue
-			err := c.runCommand(opcode)
+			err := c.runCommand(opcode, timeout)
 			c.monChan <- DecCmdInQue
 
 			if err == nil && opcode != QuitOpcode {
@@ -52,17 +59,36 @@ func (c *CmdHandler) ExecuteCommand(cmd string) (int, error) {
 	return -1, nil
 }
 
-func (c *CmdHandler) runCommand(opcode int) error {
+func (c *CmdHandler) runCommand(opcode int, timeout time.Duration) error {
+	timeoutChan := make(chan bool)
+	errChan := make(chan error)
+
+	go func() {
+		time.Sleep(timeout)
+		timeoutChan <- true
+	}()
+
 	switch opcode {
 	case 0:
 		return nil
 	case 1:
-		return RunNoop()
+		go RunNoop(errChan)
 	case 2:
-		return RunDelayingNoop()
+		go RunDelayingNoop(errChan)
 	default:
 		return nil
 	}
+
+	for {
+		select {
+		case <-timeoutChan:
+			return ErrAPIUnavailable()
+		case err := <-errChan:
+			return err
+		default:
+		}
+	}
+
 	return nil
 }
 
