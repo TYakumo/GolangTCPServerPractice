@@ -38,7 +38,7 @@ func StartANewTCPServer(port int, mon *ResourceMonitor) {
 				log.Panicln(err)
 			}
 
-			go HandleRequest(conn, cmdHandler)
+			go HandleRequest(conn, cmdHandler, mon.statusSignal)
 		}
 	}()
 

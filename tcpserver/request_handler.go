@@ -6,8 +6,12 @@ import (
 	"time"
 )
 
-func HandleRequest(conn net.Conn, cmdHandler *CmdHandler) {
+func HandleRequest(conn net.Conn, cmdHandler *CmdHandler, monChan chan int) {
 	log.Println("A new connection accepted.")
+	monChan <- IncConn
+	defer func() {
+		monChan <- DecConn
+	}()
 	defer conn.Close()
 	defer log.Println("Connection closed.")
 	bufSize := 1024
