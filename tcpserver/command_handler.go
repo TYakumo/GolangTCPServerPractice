@@ -1,6 +1,7 @@
 package tcpserver
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -39,12 +40,14 @@ func (c *CmdHandler) ExecuteCommand(cmd string) (int, error) {
 
 	opcode, found := c.cmdStrMap[cmd]
 
-	timeout := time.Duration(3) * time.Second //setting much lower than 8 seconds deliberately for failure testing
+	//setting much lower than 8 seconds deliberately for failure testing
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(3)*time.Second)
+	defer cancel()
 
 	if found {
 		if c.rateCntr.GetToken() {
 			c.monChan <- IncCmdInQue
-			err := c.runCommand(opcode, timeout)
+			err := c.runCommand(opcode, ctx)
 			c.monChan <- DecCmdInQue
 
 			if err == nil && opcode != QuitOpcode {
@@ -59,14 +62,8 @@ func (c *CmdHandler) ExecuteCommand(cmd string) (int, error) {
 	return -1, nil
 }
 
-func (c *CmdHandler) runCommand(opcode int, timeout time.Duration) error {
-	timeoutChan := make(chan bool)
+func (c *CmdHandler) runCommand(opcode int, ctx context.Context) error {
 	errChan := make(chan error)
-
-	go func() {
-		time.Sleep(timeout)
-		timeoutChan <- true
-	}()
 
 	switch opcode {
 	case 0:
@@ -79,14 +76,11 @@ func (c *CmdHandler) runCommand(opcode int, timeout time.Duration) error {
 		return nil
 	}
 
-	for {
-		select {
-		case <-timeoutChan:
-			return ErrAPIUnavailable()
-		case err := <-errChan:
-			return err
-		default:
-		}
+	select {
+	case <-ctx.Done():
+		return ErrAPIUnavailable()
+	case err := <-errChan:
+		return err
 	}
 
 	return nil
